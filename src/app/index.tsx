@@ -1,98 +1,112 @@
-import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useEffect } from 'react';
+import { View, Text } from 'react-native';
+import { useRouter } from 'expo-router';
+import Animated, { 
+  useSharedValue, 
+  useAnimatedStyle, 
+  withSpring, 
+  withTiming, 
+  withDelay, 
+  runOnJS 
+} from 'react-native-reanimated';
+import { Sprout } from 'lucide-react-native';
+import { useTheme } from '../hooks/useTheme';
+import { StorageService } from '../services/storage';
 
-import { AnimatedIcon } from '@/components/animated-icon';
-import { HintRow } from '@/components/hint-row';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+export default function SplashScreen() {
+  const { colors } = useTheme();
+  const router = useRouter();
 
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
-  }
-  if (Device.isDevice) {
-    return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
-    );
-  }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
+  // Animation values
+  const logoScale = useSharedValue(0.3);
+  const logoOpacity = useSharedValue(0);
+  const textOpacity = useSharedValue(0);
+  const textTranslateY = useSharedValue(20);
+
+  useEffect(() => {
+    // 1. Trigger Animations
+    logoScale.value = withSpring(1, { damping: 12, stiffness: 100 });
+    logoOpacity.value = withTiming(1, { duration: 800 });
+    textOpacity.value = withDelay(400, withTiming(1, { duration: 600 }));
+    textTranslateY.value = withDelay(400, withSpring(0, { damping: 15 }));
+
+    // 2. Auth Check & Navigation Redirect
+    const timer = setTimeout(async () => {
+      try {
+        const currentUser = await StorageService.getCurrentUser();
+        if (currentUser) {
+          router.replace('/(tabs)/dashboard');
+        } else {
+          router.replace('/login');
+        }
+      } catch (err) {
+        console.error('Splash screen auth check failed', err);
+        router.replace('/login');
+      }
+    }, 2200); // Allow animation to finish
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  const logoAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: logoOpacity.value,
+      transform: [{ scale: logoScale.value }],
+    };
+  });
+
+  const textAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: textOpacity.value,
+      transform: [{ translateY: textTranslateY.value }],
+    };
+  });
+
   return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
+    <View 
+      style={{ backgroundColor: colors.background }} 
+      className="flex-1 items-center justify-center"
+    >
+      <Animated.View 
+        style={[
+          logoAnimatedStyle,
+          { 
+            backgroundColor: colors.primary + '12',
+            shadowColor: colors.primary,
+            shadowOffset: { width: 0, height: 8 },
+            shadowOpacity: 0.15,
+            shadowRadius: 20,
+            elevation: 8,
+          }
+        ]}
+        className="w-32 h-32 rounded-[40px] items-center justify-center mb-6"
+      >
+        <Sprout size={64} color={colors.primary} strokeWidth={2.2} />
+      </Animated.View>
+
+      <Animated.View style={textAnimatedStyle} className="items-center">
+        <Text 
+          style={{ color: colors.text }} 
+          className="text-3xl font-extrabold tracking-tight mb-1"
+        >
+          Farm Work
+        </Text>
+        <Text 
+          style={{ color: colors.primary }} 
+          className="text-lg font-bold uppercase tracking-[0.25em] ml-1"
+        >
+          Scheduler
+        </Text>
+        
+        <View className="flex-row items-center mt-12">
+          <Text 
+            style={{ color: colors.textSecondary }} 
+            className="text-xs font-semibold tracking-wider uppercase opacity-60"
+          >
+            Daily Operations Digitized
+          </Text>
+        </View>
+      </Animated.View>
+    </View>
   );
 }
-
-export default function HomeScreen() {
-  return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.heroSection}>
-          <AnimatedIcon />
-          <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
-          </ThemedText>
-        </ThemedView>
-
-        <ThemedText type="code" style={styles.code}>
-          get started
-        </ThemedText>
-
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Try editing"
-            hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
-          />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
-        </ThemedView>
-
-        {Platform.OS === 'web' && <WebBadge />}
-      </SafeAreaView>
-    </ThemedView>
-  );
-}
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    flexDirection: 'row',
-  },
-  safeArea: {
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    alignItems: 'center',
-    gap: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.three,
-    maxWidth: MaxContentWidth,
-  },
-  heroSection: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
-  },
-  title: {
-    textAlign: 'center',
-  },
-  code: {
-    textTransform: 'uppercase',
-  },
-  stepContainer: {
-    gap: Spacing.three,
-    alignSelf: 'stretch',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.four,
-  },
-});
