@@ -197,3 +197,5 @@ const progressStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     letterSpacing: -0.5,
   },
 });
+
+export default React.memo(ProgressCard);

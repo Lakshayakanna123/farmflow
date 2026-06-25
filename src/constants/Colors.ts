@@ -16,6 +16,7 @@ export const Colors = {
   primaryMid:      '#3E7B35',   // Mid green — hover & active
   primaryLight:    '#6AAF5E',   // Soft green — borders, icons
   primaryGlow:     '#EAF4E8',   // Pale green — tinted backgrounds, success badges
+  secondary:       '#1A4A7A',   // Deep navy — secondary brand color
 
   // Warm Gold (Energy, Warmth, Harvest)
   accent:          '#C8860A',   // Warm gold — highlights, progress rings, stars
@@ -61,6 +62,7 @@ export const DarkColors = {
   primaryMid:      '#4CA14C',
   primaryLight:    '#2D5A27',
   primaryGlow:     'rgba(93,184,93,0.12)',
+  secondary:       '#5DB8D8',   // Bright cyan — secondary on dark
 
   // Gold — warm and punchy on dark
   accent:          '#F0A830',

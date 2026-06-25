@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TextInput, Pressable, Alert, Image, ScrollView, Platform } from 'react-native';
+import { View, Text, TextInput, Pressable, Alert, Image, ScrollView, Platform, KeyboardAvoidingView } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Audio } from 'expo-av';
 import { Camera, Image as ImageIcon, Trash2, AlertTriangle, ShieldAlert } from 'lucide-react-native';
@@ -129,7 +129,33 @@ export const ReportIssueModal: React.FC<ReportIssueModalProps> = ({
       });
 
       const recording = new Audio.Recording();
-      await recording.prepareToRecordAsync(Audio.RECORDING_OPTIONS_PRESET_HIGH_QUALITY);
+      // Use proper recording options object instead of preset
+      const recordingOptions = {
+        android: {
+          extension: '.m4a',
+          outputFormat: 1,
+          audioEncoder: 1,
+          sampleRate: 44100,
+          numberOfChannels: 2,
+          bitRate: 128000,
+        },
+        ios: {
+          extension: '.m4a',
+          outputFormat: 'mpegadts',
+          audioQuality: 'high',
+          sampleRate: 44100,
+          numberOfChannels: 2,
+          bitRate: 128000,
+          linearPCMBitDepth: 16,
+          linearPCMIsBigEndian: false,
+          linearPCMIsFloat: false,
+        },
+        web: {
+          mimeType: 'audio/webm',
+          audioBitsPerSecond: 128000,
+        },
+      };
+      await recording.prepareToRecordAsync(recordingOptions);
       await recording.startAsync();
       setRecording(recording);
     } catch (error) {
@@ -227,7 +253,16 @@ export const ReportIssueModal: React.FC<ReportIssueModalProps> = ({
       onClose={onClose} 
       title={task ? `Report Issue: ${task.title}` : `Report Farm Issue (${resolvedCategory})`}
     >
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }} className="space-y-4">
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
+      >
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ paddingBottom: 140 }}
+          className="space-y-4"
+        >
         {/* Issue Type Selection */}
         <View className="mb-2">
           <Text style={{ color: colors.text }} className="text-xs font-bold uppercase tracking-wider mb-2">
@@ -421,6 +456,7 @@ export const ReportIssueModal: React.FC<ReportIssueModalProps> = ({
           className="w-full mt-2"
         />
       </ScrollView>
+    </KeyboardAvoidingView>
     </BottomSheet>
   );
 };

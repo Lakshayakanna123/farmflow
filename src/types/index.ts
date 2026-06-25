@@ -27,6 +27,7 @@ export interface Task {
   originalDueDate?: string;
   rescheduledReason?: string;
   rescheduledAt?: string;
+  proof?: string[];               // Photo/media proof URIs
 }
 
 export interface Issue {

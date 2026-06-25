@@ -26,7 +26,8 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
   children,
 }) => {
   const { colors, isDark } = useTheme();
-  
+  const [isMounted, setIsMounted] = React.useState(visible);
+
   // Shared value for sheet translation
   const translateY = useSharedValue(SCREEN_HEIGHT);
   // Shared value for backdrop opacity
@@ -34,36 +35,36 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
 
   useEffect(() => {
     if (visible) {
-      // Animate in
+      setIsMounted(true);
       translateY.value = withSpring(0, { damping: 20, stiffness: 100 });
       backdropOpacity.value = withTiming(0.4, { duration: 300 });
-    } else {
-      // Animate out
-      translateY.value = withTiming(SCREEN_HEIGHT, { duration: 300 });
+    } else if (isMounted) {
+      translateY.value = withTiming(SCREEN_HEIGHT, { duration: 300 }, () => {
+        runOnJS(setIsMounted)(false);
+      });
       backdropOpacity.value = withTiming(0, { duration: 250 });
     }
-  }, [visible]);
+  }, [visible, isMounted]);
 
   const handleClose = () => {
+    if (!visible) {
+      onClose();
+      return;
+    }
     translateY.value = withTiming(SCREEN_HEIGHT, { duration: 250 }, () => {
-      runOnJS(onClose)();
+      runOnJS(() => {
+        setIsMounted(false);
+        onClose();
+      })();
     });
     backdropOpacity.value = withTiming(0, { duration: 250 });
   };
 
-  const backdropStyle = useAnimatedStyle(() => {
-    return {
-      opacity: backdropOpacity.value,
-    };
-  });
+  const backdropStyle = useAnimatedStyle(() => ({ opacity: backdropOpacity.value }));
 
-  const sheetStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ translateY: translateY.value }],
-    };
-  });
+  const sheetStyle = useAnimatedStyle(() => ({ transform: [{ translateY: translateY.value }] }));
 
-  if (!visible) return null;
+  if (!isMounted) return null;
 
   return (
     <View style={StyleSheet.absoluteFill} className="z-[999]">

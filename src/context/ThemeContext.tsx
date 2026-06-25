@@ -3,7 +3,7 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import { useColorScheme as useRNColorScheme } from "react-native";
 import { Colors, DarkColors, ThemeColors } from "../constants/Colors";
 
-type ThemeMode = "light" | "dark" | "system";
+type ThemeMode = "light" | "dark";
 
 interface ThemeContextType {
   theme: ThemeMode;
@@ -19,20 +19,10 @@ const STORAGE_KEY = "fws_theme";
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [themeMode, setThemeModeState] = useState<ThemeMode>("system");
-  const systemColorScheme = useRNColorScheme();
-
-  // NOTE: We do not call NativeWind's setColorScheme here.
-  // NativeWind's automatic dark mode (via `useColorScheme` from react-native)
-  // handles the Tailwind dark class automatically. Calling setColorScheme
-  // manually requires darkMode: 'class' in tailwind.config and causes a
-  // runtime error when that option isn't set.
+  const [themeMode, setThemeModeState] = useState<ThemeMode>("light");
 
   // Resolve whether the current active theme is dark
-  const isDark =
-    themeMode === "system"
-      ? systemColorScheme === "dark"
-      : themeMode === "dark";
+  const isDark = themeMode === "dark";
 
   const colors = isDark ? DarkColors : Colors;
 
@@ -41,14 +31,10 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
     const loadTheme = async () => {
       try {
         const savedTheme = await AsyncStorage.getItem(STORAGE_KEY);
-        if (
-          savedTheme === "light" ||
-          savedTheme === "dark" ||
-          savedTheme === "system"
-        ) {
+        if (savedTheme === "light" || savedTheme === "dark") {
           setThemeModeState(savedTheme);
         }
-        // If no saved theme, default stays "system" (initial state).
+        // If no saved theme, default stays "light".
       } catch (error) {
         console.error("Failed to load theme from storage", error);
       }

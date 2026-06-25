@@ -230,3 +230,4 @@ const cardStyles = (colors: any, isDark: boolean, isCompleted: boolean, category
       letterSpacing: 0.5,
     },
   });
+export default React.memo(TaskCard);

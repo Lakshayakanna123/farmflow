@@ -1,14 +1,15 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View, Text, ScrollView, Pressable, Alert,
   Animated as RNAnimated, StyleSheet, Modal,
 } from 'react-native';
+import * as Location from 'expo-location';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   Sun, Wind, Droplets, LogOut, AlertTriangle,
   Bird, Fish, Milk, ShieldAlert, Truck, Wrench,
-  Bell, CheckCircle, Clock, ChevronRight, X,
+  Bell, CheckCircle, Clock, MapPin, ChevronRight, X,
 } from 'lucide-react-native';
 import { useTheme } from '../../hooks/useTheme';
 import { StorageService } from '../../services/storage';
@@ -97,6 +98,8 @@ export default function DashboardScreen() {
   const [reportIssueVisible, setReportIssueVisible] = useState(false);
   const [reportedIssueTask, setReportedIssueTask]   = useState<Task | null>(null);
   const [logoutVisible, setLogoutVisible]           = useState(false);
+  const [currentTime, setCurrentTime]               = useState(new Date());
+  const [locationLabel, setLocationLabel]           = useState('Sunnybrook Farm');
 
   const headerAnim = useRef(new RNAnimated.Value(0)).current;
 
@@ -126,10 +129,32 @@ export default function DashboardScreen() {
   }, []);
 
   useEffect(() => {
+    const interval = setInterval(() => setCurrentTime(new Date()), 60_000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    let isActive = true;
+    (async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+          const loc = await Location.getCurrentPositionAsync({});
+          if (!isActive) return;
+          setLocationLabel(`${loc.coords.latitude.toFixed(2)}, ${loc.coords.longitude.toFixed(2)}`);
+        }
+      } catch (error) {
+        console.warn('Location capture failed', error);
+      }
+    })();
+    return () => { isActive = false; };
+  }, []);
+
+  useEffect(() => {
     if (params.filterCategory) setSelectedCategory(params.filterCategory);
   }, [params.filterCategory]);
 
-  const handleToggleTask = async (taskInput: Task | string) => {
+  const handleToggleTask = useCallback(async (taskInput: Task | string) => {
     if (!user) return;
     const task = typeof taskInput === 'string' ? tasks.find((item) => item.id === taskInput) : taskInput;
     if (!task) return;
@@ -151,28 +176,30 @@ export default function DashboardScreen() {
     setTasks(updatedTasks);
     const recentActivities = await StorageService.getActivities();
     setActivities(recentActivities);
-  };
+  }, [user, tasks]);
 
-  const handleLogOutConfirm = async () => {
+  const handleLogOutConfirm = useCallback(async () => {
     await StorageService.logout();
     setLogoutVisible(false);
     setTimeout(() => router.replace('/login'), 100);
-  };
+  }, []);
 
-  const handlePressTask = (task: Task) => {
+  const handlePressTask = useCallback((task: Task) => {
     if (task.status === 'pending' && (task.category === 'birds' || task.category === 'fish')) {
       router.push(task.category === 'birds' ? '/checklist/birds' : '/checklist/fish');
       return;
     }
     setSelectedTaskDetail(task);
     setTaskDetailVisible(true);
-  };
+  }, []);
 
-  const filteredTasks = tasks.filter((task) => {
-    const matchesSearch   = task.title.toLowerCase().includes(query.toLowerCase());
-    const matchesCategory = selectedCategory ? task.category === selectedCategory : true;
-    return matchesSearch && matchesCategory;
-  });
+  const filteredTasks = useMemo(() => {
+    return tasks.filter((task) => {
+      const matchesSearch   = task.title.toLowerCase().includes(query.toLowerCase());
+      const matchesCategory = selectedCategory ? task.category === selectedCategory : true;
+      return matchesSearch && matchesCategory;
+    });
+  }, [tasks, query, selectedCategory]);
 
   const completedCount = tasks.filter((t) => t.status === 'completed').length;
   const totalCount     = tasks.length;
@@ -240,7 +267,11 @@ export default function DashboardScreen() {
               </View>
               <View>
                 <Text style={[s.weatherTemp, { color: colors.text }]}>24°C · Sunny</Text>
-                <Text style={[s.weatherSub, { color: colors.textSecondary }]}>Sunnybrook Farm</Text>
+                <View style={s.weatherMeta}>
+                  <MapPin size={12} color={colors.textMuted} />
+                  <Text style={[s.weatherMetaText, { color: colors.textSecondary }]}> {locationLabel}</Text>
+                  <Text style={[s.weatherMetaText, { color: colors.textSecondary }]}> · {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
+                </View>
               </View>
             </View>
             <View style={s.weatherRight}>
@@ -461,6 +492,8 @@ const dashStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   weatherTemp: { fontSize: 15, fontWeight: '800' },
   weatherSub: { fontSize: 12, marginTop: 2 },
   weatherRight: { flexDirection: 'row', alignItems: 'center' },
+  weatherMeta: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', marginTop: 4 },
+  weatherMetaText: { fontSize: 11, fontWeight: '600' },
   weatherStat: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   weatherStatTxt: { fontSize: 12, fontWeight: '600' },
 
@@ -480,7 +513,9 @@ const dashStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     gap: 10,
   },
   quickBtn: {
-    width: '30.5%',
+    flexBasis: '48%',
+    maxWidth: '48%',
+    minWidth: 140,
     aspectRatio: 0.95,
     borderRadius: 18,
     alignItems: 'center',

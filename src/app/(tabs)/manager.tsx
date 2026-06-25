@@ -36,7 +36,7 @@ export default function ManagerDashboardScreen() {
   const { colors, isDark } = useTheme();
 
   // Navigation Portal Tab State
-  const [activeTab, setActiveTab] = useState<'analytics' | 'notifications' | 'issues' | 'scheduler'>('analytics');
+  const [activeTab, setActiveTab] = useState<'analytics' | 'notifications' | 'issues' | 'scheduler' | 'gallery'>('analytics');
   
   // Data State
   const [summary, setSummary] = useState<FarmSummary | null>(null);

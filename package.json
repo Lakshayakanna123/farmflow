@@ -45,6 +45,8 @@
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
+    "eslint": "^9.0.0",
+    "eslint-config-expo": "~56.0.4",
     "typescript": "~6.0.3"
   },
   "scripts": {
@@ -53,6 +55,8 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
+    "build": "expo export --output-dir web-build --platform web",
+    "vercel-build": "npm run build",
     "lint": "expo lint"
   },
   "private": true

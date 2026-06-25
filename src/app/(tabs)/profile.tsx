@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, Pressable, Modal, Switch, Platform } from 'react-native';
+import { View, Text, ScrollView, Pressable, Modal, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { User, Sun, Moon, Monitor, Database, LogOut, Shield, ChevronRight, AlertTriangle, X } from 'lucide-react-native';
+import { User, Sun, Moon, Database, LogOut, Shield, ChevronRight, AlertTriangle, X } from 'lucide-react-native';
 import { useTheme } from '../../hooks/useTheme';
 import { StorageService } from '../../services/storage';
 import { AppCard } from '../../components/ui/AppCard';
@@ -176,10 +176,9 @@ export default function ProfileScreen() {
     setTimeout(() => setResetDone(false), 3000);
   };
 
-  const themeOptions: { mode: 'light' | 'dark' | 'system'; label: string; icon: any }[] = [
+  const themeOptions: { mode: 'light' | 'dark'; label: string; icon: any }[] = [
     { mode: 'light', label: 'Light', icon: Sun },
     { mode: 'dark', label: 'Dark', icon: Moon },
-    { mode: 'system', label: 'System', icon: Monitor },
   ];
 
   const roleColor = user?.role === 'manager' ? colors.warning : colors.primary;
@@ -356,10 +355,7 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* ── Developer / Admin Controls ── */}
-        <Text style={{ color: colors.text }} className="text-xs font-black uppercase tracking-widest mb-3 ml-1">
-          Developer
-        </Text>
+        {/* ── Maintenance Actions ── */}
         <View
           style={{
             backgroundColor: colors.card,
@@ -373,7 +369,6 @@ export default function ProfileScreen() {
             elevation: 2,
           }}
         >
-          {/* Reset Data Row */}
           <Pressable
             onPress={() => setShowResetDialog(true)}
             style={({ pressed }) => ({
@@ -411,41 +406,6 @@ export default function ProfileScreen() {
             </View>
             <ChevronRight size={16} color={colors.textMuted} />
           </Pressable>
-
-          {/* Developer Mode Row */}
-          <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: 16,
-            }}
-          >
-            <View className="flex-row items-center flex-1">
-              <View
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: 10,
-                  backgroundColor: colors.successLight,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  marginRight: 12,
-                }}
-              >
-                <Shield size={18} color={colors.primary} />
-              </View>
-              <View className="flex-1">
-                <Text style={{ color: colors.text }} className="text-sm font-bold">
-                  Developer Mode
-                </Text>
-                <Text style={{ color: colors.textSecondary }} className="text-xs mt-0.5">
-                  Enabled with full sandbox permissions
-                </Text>
-              </View>
-            </View>
-            <Switch value={true} trackColor={{ true: colors.primary, false: colors.textMuted }} />
-          </View>
         </View>
 
         {/* ── Sign Out Button ── */}

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { View, TextInput, ScrollView, Pressable, Text } from 'react-native';
 import { Search, X, Bird, Fish, Milk, ShieldAlert, Truck, Wrench } from 'lucide-react-native';
 import { useTheme } from '../../hooks/useTheme';
@@ -21,7 +21,7 @@ const CATEGORIES: { id: TaskCategory; label: string; icon: any }[] = [
   { id: 'maintenance', label: 'Maintenance', icon: Wrench },
 ];
 
-export const SearchBar: React.FC<SearchBarProps> = ({
+const SearchBarComponent: React.FC<SearchBarProps> = ({
   query,
   onQueryChange,
   selectedCategory,
@@ -29,6 +29,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   placeholder = 'Search tasks...',
 }) => {
   const { colors, isDark } = useTheme();
+  const handleClearQuery = useCallback(() => onQueryChange(''), [onQueryChange]);
 
   return (
     <View className="mb-4">
@@ -51,7 +52,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
           className="flex-1 ml-3 text-sm font-medium h-full"
         />
         {query.length > 0 && (
-          <Pressable onPress={() => onQueryChange('')} className="p-1">
+          <Pressable onPress={handleClearQuery} className="p-1">
             <X size={16} color={colors.textSecondary} />
           </Pressable>
         )}
@@ -125,3 +126,5 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     </View>
   );
 };
+
+export const SearchBar = React.memo(SearchBarComponent);
