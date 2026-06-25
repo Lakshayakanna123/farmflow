@@ -27,46 +27,28 @@ export const StatCard: React.FC<StatCardProps> = ({
 
   return (
     <AppCard delay={delay} className="flex-1 min-w-[140px] p-4">
-      <View className="flex-row items-center justify-between mb-2">
-        <Text 
-          numberOfLines={1}
-          style={{ color: colors.textSecondary }} 
-          className="text-xs font-medium uppercase tracking-wider"
-        >
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+        <Text numberOfLines={1} style={{ color: colors.textSecondary, textTransform: 'uppercase', fontSize: 12, fontWeight: '700' }}>
           {title}
         </Text>
-        {icon && <View className="opacity-80">{icon}</View>}
+        {icon && <View style={{ opacity: 0.9 }}>{icon}</View>}
       </View>
-      
-      <Text 
-        style={{ color: colors.text }} 
-        className="text-2xl font-bold tracking-tight mb-1"
-      >
+
+      <Text style={{ color: colors.primary, fontSize: 22, fontWeight: '800', marginBottom: 6 }}>
         {value}
       </Text>
-      
+
       {trend && (
-        <View className="flex-row items-center space-x-1 mb-1">
-          <Text 
-            className={`text-xs font-semibold ${trend.isPositive ? 'text-emerald-600 dark:text-emerald-400' : 'text-orange-600 dark:text-orange-400'}`}
-          >
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+          <Text style={{ fontSize: 12, fontWeight: '800', color: trend.isPositive ? colors.primary : colors.warning }}>
             {trend.isPositive ? '↑' : '↓'} {trend.value}
           </Text>
-          <Text 
-            style={{ color: colors.textSecondary }} 
-            className="text-[10px]"
-          >
-            vs yesterday
-          </Text>
+          <Text style={{ color: colors.textSecondary, fontSize: 11 }}>vs yesterday</Text>
         </View>
       )}
-      
+
       {description && (
-        <Text 
-          numberOfLines={2}
-          style={{ color: colors.textSecondary }} 
-          className="text-xs font-normal"
-        >
+        <Text numberOfLines={2} style={{ color: colors.textSecondary, fontSize: 12 }}>
           {description}
         </Text>
       )}

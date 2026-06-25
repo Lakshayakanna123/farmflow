@@ -112,7 +112,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onToggle, onPress, del
           {/* ── Task Info ── */}
           <View style={{ flex: 1 }}>
             <Text
-              style={[s.title, { textDecorationLine: isCompleted ? 'line-through' : 'none' }]}
+              style={[s.title, { textDecorationLine: isCompleted ? 'line-through' : 'none', fontFamily: 'Poppins_600SemiBold' }]}
               numberOfLines={2}
             >
               {task.title}
@@ -122,7 +122,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onToggle, onPress, del
               {/* Category chip */}
               <View style={[s.chip, { backgroundColor: isCompleted ? colors.primaryGlow : category.bg }]}>
                 <IconComponent size={11} color={isCompleted ? colors.primary : category.color} />
-                <Text style={[s.chipTxt, { color: isCompleted ? colors.primary : category.color }]}>
+                <Text style={[s.chipTxt, { color: isCompleted ? colors.primary : category.color, fontFamily: 'Inter_400Regular' }]}>
                   {' '}{category.label}
                 </Text>
               </View>
@@ -131,7 +131,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onToggle, onPress, del
               {task.assignedTo && (
                 <View style={s.assignee}>
                   <User size={10} color={colors.textMuted} />
-                  <Text style={[s.assigneeTxt, { color: colors.textMuted }]}>
+                  <Text style={[s.assigneeTxt, { color: colors.textMuted, fontFamily: 'Inter_400Regular' }]}>
                     {' '}{task.assignedTo.split(' ')[0]}
                   </Text>
                 </View>
@@ -142,7 +142,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onToggle, onPress, del
           {/* ── Priority Badge ── */}
           <View style={{ alignItems: 'flex-end', justifyContent: 'space-between', minHeight: 44 }}>
             <View style={[s.priorityBadge, { backgroundColor: isCompleted ? colors.primaryGlow : priority.bg }]}>
-              <Text style={[s.priorityTxt, { color: isCompleted ? colors.primary : priority.color }]}>
+              <Text style={[s.priorityTxt, { color: isCompleted ? colors.primary : priority.color, fontFamily: 'Poppins_400Regular' }]}>
                 {isCompleted ? '✓ Done' : priority.label}
               </Text>
             </View>

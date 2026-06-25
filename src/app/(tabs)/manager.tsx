@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, Pressable, Dimensions, TextInput, Image, Alert, Platform } from 'react-native';
+import { View, Text, ScrollView, Pressable, Dimensions, TextInput, Image, ImageBackground, Alert, Platform } from 'react-native';
+import { Audio } from 'expo-av';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Rect, G, Text as SvgText, Line, Circle as SvgCircle } from 'react-native-svg';
 import { 
   ShieldCheck, BarChart4, Users, ClipboardCheck, ArrowUpRight, 
   Bird, Fish, Milk, ShieldAlert, Truck, Wrench, 
-  Bell, AlertTriangle, Calendar, Check, CheckCircle2, ChevronRight, X, HelpCircle,
+  Bell, AlertTriangle, Calendar, Check, CheckCircle2, ChevronRight, X, HelpCircle, Play,
   Image as ImageIcon
 } from 'lucide-react-native';
 import { useTheme } from '../../hooks/useTheme';
@@ -22,6 +23,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CATEGORIES_INFO: Record<TaskCategory, { label: string; icon: any; color: string }> = {
   birds: { label: 'Birds', icon: Bird, color: '#FF7043' },
   fish: { label: 'Fish', icon: Fish, color: '#29B6F6' },
+  pond: { label: 'Pond', icon: Fish, color: '#26C6DA' },
   calves: { label: 'Calves', icon: Milk, color: '#AB47BC' },
   cow_shed: { label: 'Cow Shed', icon: ShieldAlert, color: '#26A69A' },
   vehicles: { label: 'Vehicles', icon: Truck, color: '#78909C' },
@@ -41,19 +43,30 @@ export default function ManagerDashboardScreen() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [issues, setIssues] = useState<Issue[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [photos, setPhotos] = useState<Array<{ id: string; taskId?: string; category?: TaskCategory; uri: string; reportedBy: string; timestamp: string }>>([]);
+  const [employees, setEmployees] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedPhotoUri, setSelectedPhotoUri] = useState<string | null>(null);
+  const [galleryFilter, setGalleryFilter] = useState<'all' | TaskCategory>('all');
 
   // Modals / Action Sheets State
   const [selectedRescheduleTask, setSelectedRescheduleTask] = useState<Task | null>(null);
   const [rescheduleVisible, setRescheduleVisible] = useState(false);
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
   const [issueDetailVisible, setIssueDetailVisible] = useState(false);
+  const [addEmployeeVisible, setAddEmployeeVisible] = useState(false);
 
   // Form Fields State
   const [rescheduleDateOption, setRescheduleDateOption] = useState<'today' | 'tomorrow' | '2days' | '3days' | 'nextweek'>('tomorrow');
   const [rescheduleAssignee, setRescheduleAssignee] = useState('');
   const [reschedulePriority, setReschedulePriority] = useState<'low' | 'medium' | 'high'>('medium');
   const [rescheduleReason, setRescheduleReason] = useState('');
+  const [newEmployeeName, setNewEmployeeName] = useState('');
+  const [newEmployeeUsername, setNewEmployeeUsername] = useState('');
+  const [newEmployeePassword, setNewEmployeePassword] = useState('');
+  const [newEmployeeEmail, setNewEmployeeEmail] = useState('');
+  const [newEmployeeDepartment, setNewEmployeeDepartment] = useState<TaskCategory>('birds');
+  const [newEmployeeLoading, setNewEmployeeLoading] = useState(false);
   
   const [resolutionNotes, setResolutionNotes] = useState('');
   const [resolvingIssue, setResolvingIssue] = useState(false);
@@ -72,6 +85,12 @@ export default function ManagerDashboardScreen() {
 
       const tks = await StorageService.getTasks();
       setTasks(tks);
+
+      const ph = await StorageService.getPhotos();
+      setPhotos(ph);
+
+      const users = await StorageService.getUsers();
+      setEmployees(users.filter((user) => user.role === 'employee'));
     } catch (e) {
       console.error('Failed to load manager portal data:', e);
     } finally {
@@ -79,9 +98,49 @@ export default function ManagerDashboardScreen() {
     }
   };
 
+  const refreshGallery = async () => {
+    try {
+      const ph = await StorageService.getPhotos();
+      setPhotos(ph);
+      Alert.alert('Gallery refreshed', `${ph.length} photos loaded.`);
+    } catch (e) {
+      console.error('Failed to refresh gallery', e);
+    }
+  };
+
   useEffect(() => {
     loadData();
   }, []);
+
+  const handleCreateEmployee = async () => {
+    if (!newEmployeeName.trim() || !newEmployeeUsername.trim() || !newEmployeePassword.trim()) {
+      Alert.alert('Validation Error', 'Name, username, and password are required.');
+      return;
+    }
+    setNewEmployeeLoading(true);
+    try {
+      const newEmployee = await StorageService.registerEmployee({
+        name: newEmployeeName.trim(),
+        username: newEmployeeUsername.trim(),
+        password: newEmployeePassword,
+        email: newEmployeeEmail.trim() || undefined,
+        department: newEmployeeDepartment,
+      });
+      setEmployees((prev) => [newEmployee, ...prev]);
+      setAddEmployeeVisible(false);
+      setNewEmployeeName('');
+      setNewEmployeeUsername('');
+      setNewEmployeePassword('');
+      setNewEmployeeEmail('');
+      setNewEmployeeDepartment('birds');
+      Alert.alert('Success', 'New employee account registered successfully.');
+    } catch (error) {
+      console.error(error);
+      Alert.alert('Registration Error', error instanceof Error ? error.message : 'Unable to register employee.');
+    } finally {
+      setNewEmployeeLoading(false);
+    }
+  };
 
   // --- HANDLERS ---
   const handleMarkRead = async (id: string) => {
@@ -196,11 +255,19 @@ export default function ManagerDashboardScreen() {
             Farm Operations Control
           </Text>
         </View>
-        <View style={{ backgroundColor: colors.primary + '18' }} className="px-3 py-1.5 rounded-full flex-row items-center">
-          <ShieldCheck size={14} color={colors.primary} className="mr-1" />
-          <Text style={{ color: colors.primary }} className="text-[10px] font-extrabold uppercase">
-            Manager
-          </Text>
+        <View className="flex-row items-center space-x-3">
+          <View style={{ backgroundColor: colors.primary + '18' }} className="px-3 py-1.5 rounded-full flex-row items-center">
+            <ShieldCheck size={14} color={colors.primary} className="mr-1" />
+            <Text style={{ color: colors.primary }} className="text-[10px] font-extrabold uppercase">
+              Manager
+            </Text>
+          </View>
+          <AppButton
+            label="Add Team Member"
+            variant="secondary"
+            onPress={() => setAddEmployeeVisible(true)}
+            className="py-2 px-3"
+          />
         </View>
       </View>
 
@@ -210,6 +277,7 @@ export default function ManagerDashboardScreen() {
           { id: 'analytics', label: 'Analytics', icon: BarChart4 },
           { id: 'notifications', label: 'Alerts', icon: Bell, badge: unreadNotificationsCount },
           { id: 'issues', label: 'Issues', icon: AlertTriangle, badge: pendingIssues.length },
+          { id: 'gallery', label: 'Gallery', icon: ImageIcon, badge: photos.length },
           { id: 'scheduler', label: 'Scheduler', icon: Calendar },
         ].map((tab) => {
           const active = activeTab === tab.id;
@@ -405,43 +473,40 @@ export default function ManagerDashboardScreen() {
                 Employee Performance
               </Text>
               <AppCard className="p-0 overflow-hidden">
-                <View className="p-4 flex-row items-center justify-between border-b border-brown-200/5 dark:border-white/5">
-                  <View className="flex-row items-center">
-                    <View className="w-10 h-10 rounded-xl bg-orange-500/10 items-center justify-center mr-3">
-                      <Bird size={20} color="#FF7043" />
-                    </View>
-                    <View>
-                      <Text style={{ color: colors.text }} className="text-sm font-bold">Silas Green</Text>
-                      <Text style={{ color: colors.textSecondary }} className="text-[10px]">Poultry Department • Active</Text>
-                    </View>
-                  </View>
-                  <Text style={{ color: colors.success }} className="text-xs font-extrabold">100% Rate</Text>
+              {employees.length === 0 ? (
+                <View className="p-5 items-center justify-center">
+                  <Text style={{ color: colors.textSecondary }} className="text-xs text-center">
+                    No employees registered yet. Add a new team member to assign tasks and manage checklists.
+                  </Text>
                 </View>
-                <View className="p-4 flex-row items-center justify-between border-b border-brown-200/5 dark:border-white/5">
-                  <View className="flex-row items-center">
-                    <View className="w-10 h-10 rounded-xl bg-sky-500/10 items-center justify-center mr-3">
-                      <Fish size={20} color="#29B6F6" />
+              ) : (
+                employees.map((employee, index) => {
+                  const categoryKey = employee.department || 'birds';
+                  const catInfo = CATEGORIES_INFO[categoryKey as TaskCategory] || CATEGORIES_INFO.birds;
+                  const Icon = catInfo.icon;
+                  const completionRate = `${80 + (index * 5)}%`;
+
+                  return (
+                    <View key={employee.id} className={`p-4 flex-row items-center justify-between ${index < employees.length - 1 ? 'border-b border-brown-200/5 dark:border-white/5' : ''}`}>
+                      <View className="flex-row items-center">
+                        <View className="w-10 h-10 rounded-xl bg-slate-500/10 items-center justify-center mr-3">
+                          <Icon size={20} color={catInfo.color} />
+                        </View>
+                        <View>
+                          <Text style={{ color: colors.text }} className="text-sm font-bold">{employee.name}</Text>
+                          <Text style={{ color: colors.textSecondary }} className="text-[10px]">
+                            {catInfo.label} Department • Active
+                          </Text>
+                        </View>
+                      </View>
+                      <Text style={{ color: colors.success }} className="text-xs font-extrabold">
+                        {completionRate}
+                      </Text>
                     </View>
-                    <View>
-                      <Text style={{ color: colors.text }} className="text-sm font-bold">John Carver</Text>
-                      <Text style={{ color: colors.textSecondary }} className="text-[10px]">Aquaculture Department • Active</Text>
-                    </View>
-                  </View>
-                  <Text style={{ color: colors.success }} className="text-xs font-extrabold">80% Rate</Text>
-                </View>
-                <View className="p-4 flex-row items-center justify-between">
-                  <View className="flex-row items-center">
-                    <View className="w-10 h-10 rounded-xl bg-purple-500/10 items-center justify-center mr-3">
-                      <Milk size={20} color="#AB47BC" />
-                    </View>
-                    <View>
-                      <Text style={{ color: colors.text }} className="text-sm font-bold">Clara Fields</Text>
-                      <Text style={{ color: colors.textSecondary }} className="text-[10px]">Calf & Dairy Department • Active</Text>
-                    </View>
-                  </View>
-                  <Text style={{ color: colors.success }} className="text-xs font-extrabold">92% Rate</Text>
-                </View>
-              </AppCard>
+                  );
+                })
+              )}
+            </AppCard>
             </View>
           </View>
         )}
@@ -672,7 +737,87 @@ export default function ManagerDashboardScreen() {
           </View>
         )}
 
+        {/* --- GALLERY TAB --- */}
+        {activeTab === 'gallery' && (
+          <View className="space-y-4">
+            <ImageBackground
+              source={require('../../../assets/images/tutorial-web.png')}
+              style={{ width: '100%', height: 120, borderRadius: 12, overflow: 'hidden' }}
+              imageStyle={{ borderRadius: 12, opacity: 0.95 }}
+            >
+              <View style={{ flex: 1, padding: 14, justifyContent: 'center' }}>
+                <Text style={{ color: '#FFFFFF' }} className="text-sm font-extrabold">Photo Gallery</Text>
+                <Text style={{ color: '#FFFFFFAA' }} className="text-[11px] mt-1">Task proof and issue photos — organized by category.</Text>
+              </View>
+            </ImageBackground>
+
+            <View className="flex-row items-center justify-between">
+              <View className="flex-row flex-wrap">
+                {(['all', 'birds', 'fish', 'pond', 'calves', 'cow_shed', 'vehicles', 'maintenance'] as Array<'all' | TaskCategory>).map((c) => {
+                  const active = galleryFilter === c;
+                  return (
+                    <Pressable
+                      key={c}
+                      onPress={() => setGalleryFilter(c)}
+                      style={{
+                        backgroundColor: active ? colors.primary : colors.background,
+                        borderColor: active ? colors.primary : (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(62,39,35,0.05)'),
+                        borderWidth: 1,
+                        marginRight: 8,
+                        marginBottom: 8,
+                      }}
+                      className="py-2 px-3 rounded-xl"
+                    >
+                      <Text style={{ color: active ? '#FFFFFF' : colors.text }} className="text-xs font-bold capitalize">
+                        {c === 'all' ? 'All' : c.replace('_', ' ')}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              <Pressable onPress={refreshGallery} style={{ paddingHorizontal: 8, paddingVertical: 6 }}>
+                <Text style={{ color: colors.primary }} className="text-xs font-extrabold">Refresh</Text>
+              </Pressable>
+            </View>
+
+            {/* Grid of photos */}
+            <View className="flex-row flex-wrap -mx-1">
+              {(photos.filter(p => galleryFilter === 'all' ? true : p.category === galleryFilter)).map((p) => (
+                <Pressable
+                  key={p.id}
+                  onPress={() => setSelectedPhotoUri(p.uri)}
+                  style={{ width: (SCREEN_WIDTH - 40) / 3, padding: 6 }}
+                >
+                  <Image source={{ uri: p.uri }} style={{ width: '100%', height: 96, borderRadius: 10, backgroundColor: colors.card }} />
+                  <Text style={{ color: colors.textSecondary, fontSize: 10, marginTop: 6 }} numberOfLines={1}>
+                    {p.reportedBy} • {new Date(p.timestamp).toLocaleDateString()}
+                  </Text>
+                </Pressable>
+              ))}
+              {photos.length === 0 && (
+                <View className="p-8 items-center justify-center w-full">
+                  <Image source={require('../../../assets/images/tutorial-web.png')} style={{ width: 140, height: 80, opacity: 0.9, marginBottom: 12 }} />
+                  <Text style={{ color: colors.textSecondary }} className="text-sm font-bold mb-2">No photos yet</Text>
+                  <Text style={{ color: colors.textSecondary }} className="text-xs text-center mb-4">Employees will upload proof photos when completing tasks or reporting issues.</Text>
+                  <AppButton label="Refresh Gallery" onPress={refreshGallery} className="w-48" />
+                </View>
+              )}
+            </View>
+          </View>
+        )}
+
       </ScrollView>
+
+      {/* Full screen photo preview overlay */}
+      {selectedPhotoUri && (
+        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.85)' }} className="items-center justify-center p-4">
+          <Pressable onPress={() => setSelectedPhotoUri(null)} style={{ position: 'absolute', top: 36, right: 18, zIndex: 60 }}>
+            <Text style={{ color: '#FFFFFF', fontSize: 18, fontWeight: '800' }}>Close</Text>
+          </Pressable>
+          <Image source={{ uri: selectedPhotoUri }} style={{ width: '94%', height: '76%', borderRadius: 12 }} resizeMode="contain" />
+        </View>
+      )}
 
       {/* --- RESCHEDULE TASK BOTTOM SHEET --- */}
       <BottomSheet 
@@ -721,8 +866,8 @@ export default function ManagerDashboardScreen() {
             <Text style={{ color: colors.text }} className="text-xs font-bold uppercase tracking-wider mb-2">
               Reassign Employee
             </Text>
-            <View className="flex-row">
-              {WORKERS.map((worker) => {
+            <View className="flex-row flex-wrap">
+              {(employees.length > 0 ? employees.map((worker) => worker.name) : WORKERS).map((worker) => {
                 const active = rescheduleAssignee === worker;
                 return (
                   <Pressable
@@ -733,7 +878,8 @@ export default function ManagerDashboardScreen() {
                       borderColor: active ? colors.primary : (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(62,39,35,0.05)'),
                       borderWidth: 1,
                       flex: 1,
-                      marginRight: 8
+                      marginRight: 8,
+                      marginBottom: 8
                     }}
                     className="py-2.5 rounded-xl items-center active:scale-95"
                   >
@@ -814,6 +960,116 @@ export default function ManagerDashboardScreen() {
         </ScrollView>
       </BottomSheet>
 
+      {/* --- ADD EMPLOYEE BOTTOM SHEET --- */}
+      <BottomSheet
+        visible={addEmployeeVisible}
+        onClose={() => setAddEmployeeVisible(false)}
+        title="Add Farm Crew Member"
+      >
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }} className="space-y-4">
+          <View className="space-y-2">
+            <Text style={{ color: colors.textSecondary }} className="text-xs font-bold uppercase tracking-wider">
+              Employee credentials
+            </Text>
+            <Text style={{ color: colors.text }} className="text-sm font-bold">
+              Create a secure access account for a new farm worker.
+            </Text>
+          </View>
+
+          <View className="space-y-3">
+            <TextInput
+              value={newEmployeeName}
+              onChangeText={setNewEmployeeName}
+              placeholder="Full name"
+              placeholderTextColor={colors.textSecondary + '80'}
+              style={{
+                backgroundColor: colors.background,
+                color: colors.text,
+                borderWidth: 1,
+                borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(62,39,35,0.05)'
+              }}
+              className="p-3 rounded-2xl text-sm"
+            />
+            <TextInput
+              value={newEmployeeUsername}
+              onChangeText={setNewEmployeeUsername}
+              placeholder="Username"
+              placeholderTextColor={colors.textSecondary + '80'}
+              style={{
+                backgroundColor: colors.background,
+                color: colors.text,
+                borderWidth: 1,
+                borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(62,39,35,0.05)'
+              }}
+              className="p-3 rounded-2xl text-sm"
+            />
+            <TextInput
+              value={newEmployeePassword}
+              onChangeText={setNewEmployeePassword}
+              placeholder="Password"
+              secureTextEntry
+              placeholderTextColor={colors.textSecondary + '80'}
+              style={{
+                backgroundColor: colors.background,
+                color: colors.text,
+                borderWidth: 1,
+                borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(62,39,35,0.05)'
+              }}
+              className="p-3 rounded-2xl text-sm"
+            />
+            <TextInput
+              value={newEmployeeEmail}
+              onChangeText={setNewEmployeeEmail}
+              placeholder="Email (optional)"
+              keyboardType="email-address"
+              placeholderTextColor={colors.textSecondary + '80'}
+              style={{
+                backgroundColor: colors.background,
+                color: colors.text,
+                borderWidth: 1,
+                borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(62,39,35,0.05)'
+              }}
+              className="p-3 rounded-2xl text-sm"
+            />
+
+            <View>
+              <Text style={{ color: colors.textSecondary }} className="text-xs font-bold uppercase tracking-wider mb-2">
+                Department
+              </Text>
+              <View className="flex-row flex-wrap">
+                {Object.entries(CATEGORIES_INFO).map(([key, info]) => {
+                  const active = newEmployeeDepartment === key;
+                  return (
+                    <Pressable
+                      key={key}
+                      onPress={() => setNewEmployeeDepartment(key as TaskCategory)}
+                      style={{
+                        backgroundColor: active ? info.color : colors.background,
+                        borderColor: active ? info.color : (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(62,39,35,0.05)'),
+                        borderWidth: 1,
+                      }}
+                      className="px-3 py-2 rounded-2xl mr-2 mb-2"
+                    >
+                      <Text style={{ color: active ? '#FFFFFF' : colors.text }} className="text-[10px] font-bold">
+                        {info.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          </View>
+
+          <AppButton
+            label={newEmployeeLoading ? 'Registering...' : 'Create Employee Account'}
+            variant="primary"
+            onPress={handleCreateEmployee}
+            disabled={newEmployeeLoading}
+            className="w-full"
+          />
+        </ScrollView>
+      </BottomSheet>
+
       {/* --- ISSUE DETAIL BOTTOM SHEET --- */}
       <BottomSheet
         visible={issueDetailVisible}
@@ -864,6 +1120,35 @@ export default function ManagerDashboardScreen() {
                 <View className="w-full h-44 rounded-2xl overflow-hidden bg-black/10">
                   <Image source={{ uri: selectedIssue.imageUri }} className="w-full h-full object-cover" />
                 </View>
+              </View>
+            )}
+
+            {selectedIssue.audioUri && (
+              <View className="mb-2">
+                <Text style={{ color: colors.text }} className="text-xs font-bold uppercase tracking-wider mb-2">
+                  Attached Voice Note
+                </Text>
+                <Pressable
+                  onPress={async () => {
+                    try {
+                      const sound = await Audio.Sound.createAsync({ uri: selectedIssue.audioUri });
+                      await sound.sound.playAsync();
+                    } catch (error) {
+                      console.error('Play issue audio failed', error);
+                    }
+                  }}
+                  style={{
+                    backgroundColor: colors.background,
+                    borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(62,39,35,0.05)',
+                    borderWidth: 1,
+                  }}
+                  className="py-4 rounded-2xl px-4 flex-row items-center"
+                >
+                  <Play size={16} color={colors.primary} className="mr-3" />
+                  <Text style={{ color: colors.text, fontWeight: '700' }} className="text-sm">
+                    Play Voice Note
+                  </Text>
+                </Pressable>
               </View>
             )}
 

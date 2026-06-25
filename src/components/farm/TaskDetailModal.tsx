@@ -69,10 +69,10 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
         {/* Title and Status */}
         <View className="flex-row justify-between items-start mb-2">
           <View className="flex-1 mr-4">
-            <Text style={{ color: colors.text }} className="text-lg font-black tracking-tight leading-tight">
+            <Text style={{ color: colors.text, fontFamily: 'Poppins_700Bold', fontSize: 18 }}>
               {task.title}
             </Text>
-            <Text style={{ color: colors.textSecondary }} className="text-xs font-semibold capitalize mt-1">
+            <Text style={{ color: colors.textSecondary, fontFamily: 'Inter_400Regular', fontSize: 12, marginTop: 4 }}>
               Category: {task.category.replace('_', ' ')} • {task.subcategory}
             </Text>
           </View>
@@ -87,10 +87,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
             ) : (
               <Circle size={12} color={colors.warning} className="mr-1" />
             )}
-            <Text 
-              style={{ color: isCompleted ? colors.success : colors.warning }} 
-              className="text-[10px] font-extrabold uppercase"
-            >
+            <Text style={{ color: isCompleted ? colors.success : colors.warning, fontFamily: 'Inter_600SemiBold', fontSize: 10, textTransform: 'uppercase' }}>
               {task.status}
             </Text>
           </View>
@@ -103,7 +100,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
             style={{ backgroundColor: priorityColors.bg, borderColor: priorityColors.text + '30', borderWidth: 1 }}
             className="px-2.5 py-1 rounded-full mr-2 mb-2"
           >
-            <Text style={{ color: priorityColors.text }} className="text-[10px] font-bold uppercase">
+            <Text style={{ color: priorityColors.text, fontFamily: 'Inter_600SemiBold', fontSize: 10, textTransform: 'uppercase' }}>
               {task.priority} Priority
             </Text>
           </View>
@@ -114,7 +111,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
             className="px-2.5 py-1 rounded-full flex-row items-center mr-2 mb-2"
           >
             <Calendar size={10} color={colors.textSecondary} className="mr-1" />
-            <Text style={{ color: colors.textSecondary }} className="text-[10px] font-semibold">
+            <Text style={{ color: colors.textSecondary, fontFamily: 'Inter_400Regular', fontSize: 10 }}>
               Due: {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'Today'}
             </Text>
           </View>
@@ -133,11 +130,11 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
           <View className="flex-row items-center justify-between">
             <View className="flex-row items-center">
               <User size={16} color={colors.textSecondary} className="mr-2" />
-              <Text style={{ color: colors.textSecondary }} className="text-xs font-semibold">
+              <Text style={{ color: colors.textSecondary, fontFamily: 'Inter_400Regular', fontSize: 12 }}>
                 Assigned Employee
               </Text>
             </View>
-            <Text style={{ color: colors.text }} className="text-xs font-bold">
+            <Text style={{ color: colors.text, fontFamily: 'Poppins_600SemiBold', fontSize: 13 }}>
               {task.assignedTo || 'Unassigned'}
             </Text>
           </View>
@@ -160,11 +157,11 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
               <View className="flex-row items-center justify-between mt-1">
                 <View className="flex-row items-center">
                   <Calendar size={16} color={colors.textSecondary} className="mr-2" />
-                  <Text style={{ color: colors.textSecondary }} className="text-xs font-semibold">
+                  <Text style={{ color: colors.textSecondary, fontFamily: 'Inter_400Regular', fontSize: 12 }}>
                     Completed At
                   </Text>
                 </View>
-                <Text style={{ color: colors.text }} className="text-xs font-bold">
+                <Text style={{ color: colors.text, fontFamily: 'Inter_400Regular', fontSize: 12 }}>
                   {task.completedAt ? new Date(task.completedAt).toLocaleString() : 'N/A'}
                 </Text>
               </View>
@@ -184,7 +181,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                     {new Date(task.rescheduledAt).toLocaleDateString()}
                   </Text>
                 </View>
-                <Text style={{ color: colors.text }} className="text-xs italic mt-1 leading-relaxed">
+                <Text style={{ color: colors.text, fontFamily: 'Inter_400Regular', fontSize: 13, fontStyle: 'italic', marginTop: 6 }}>
                   "Rescheduled due to: {task.rescheduledReason}"
                 </Text>
               </View>
@@ -222,7 +219,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
 
         {/* Task Notes Section */}
         <View className="mb-2">
-          <Text style={{ color: colors.text }} className="text-xs font-bold uppercase tracking-wider mb-2">
+          <Text style={{ color: colors.text, fontFamily: 'Poppins_600SemiBold', fontSize: 12, textTransform: 'uppercase', marginBottom: 8 }}>
             Task Notes
           </Text>
           <View className="flex-row items-end">
@@ -249,7 +246,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
               style={{ backgroundColor: colors.primary }}
               className="px-3.5 py-3.5 rounded-xl justify-center items-center active:scale-95 disabled:opacity-50"
             >
-              <Text className="text-white text-xs font-bold">Save</Text>
+              <Text style={{ color: '#FFFFFF', fontFamily: 'Inter_600SemiBold', fontSize: 13 }}>Save</Text>
             </Pressable>
           </View>
         </View>

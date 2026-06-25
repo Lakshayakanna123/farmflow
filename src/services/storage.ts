@@ -4,23 +4,73 @@ import { INITIAL_USERS, INITIAL_TASKS, INITIAL_ACTIVITIES, INITIAL_ISSUES, INITI
 
 const KEYS = {
   USER: 'fws_user',
+  USERS: 'fws_users',
   TASKS: 'fws_tasks',
   ACTIVITIES: 'fws_activities',
   ISSUES: 'fws_issues',
   NOTIFICATIONS: 'fws_notifications'
 };
 
+const KEYS_EXT = {
+  TASK_PHOTOS: 'fws_task_photos'
+};
+
 export const StorageService = {
   // --- USER AUTH / SESSION ---
-  async login(username: string): Promise<User | null> {
-    const user = INITIAL_USERS.find(
-      (u) => u.username.toLowerCase() === username.toLowerCase().trim()
-    );
+  async login(identifier: string, password: string): Promise<User | null> {
+    const users = await this.getUsers();
+    const normalized = identifier.trim().toLowerCase();
+
+    const user = users.find((u) => {
+      const validPassword = u.password === password;
+      if (!validPassword) return false;
+      if (normalized.includes('@') && u.email) {
+        return u.email.toLowerCase() === normalized;
+      }
+      return u.username.toLowerCase() === normalized;
+    });
+
     if (user) {
       await AsyncStorage.setItem(KEYS.USER, JSON.stringify(user));
       return user;
     }
+
     return null;
+  },
+
+  async getUsers(): Promise<User[]> {
+    const usersStr = await AsyncStorage.getItem(KEYS.USERS);
+    if (!usersStr) {
+      await AsyncStorage.setItem(KEYS.USERS, JSON.stringify(INITIAL_USERS));
+      return INITIAL_USERS;
+    }
+    return JSON.parse(usersStr);
+  },
+
+  async saveUsers(users: User[]): Promise<void> {
+    await AsyncStorage.setItem(KEYS.USERS, JSON.stringify(users));
+  },
+
+  async registerEmployee(employee: Omit<User, 'id' | 'role'>): Promise<User> {
+    const users = await this.getUsers();
+    const existing = users.find((user) =>
+      user.username.toLowerCase() === employee.username.toLowerCase() ||
+      (employee.email && user.email?.toLowerCase() === employee.email.toLowerCase())
+    );
+    if (existing) {
+      throw new Error('Username or email already exists');
+    }
+
+    const newUser: User = {
+      ...employee,
+      id: `emp_${Date.now()}`,
+      role: 'employee',
+      avatar: employee.avatar || `https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=150&auto=format&fit=crop&q=80`,
+    };
+
+    const updated = [newUser, ...users];
+    await this.saveUsers(updated);
+    return newUser;
   },
 
   async getCurrentUser(): Promise<User | null> {
@@ -116,7 +166,7 @@ export const StorageService = {
     const completedTasks = tasks.filter((t) => t.status === 'completed').length;
     const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
-    const categories: TaskCategory[] = ['birds', 'fish', 'calves', 'cow_shed', 'vehicles', 'maintenance'];
+    const categories: TaskCategory[] = ['birds', 'fish', 'pond', 'calves', 'cow_shed', 'vehicles', 'maintenance'];
     const byCategory = {} as Record<TaskCategory, { total: number; completed: number }>;
 
     categories.forEach((cat) => {
@@ -149,14 +199,15 @@ export const StorageService = {
     await AsyncStorage.setItem(KEYS.ISSUES, JSON.stringify(issues));
   },
 
-  async reportIssue(issueDetails: Omit<Issue, 'id' | 'reportedAt' | 'status'>, imageUri?: string): Promise<Issue> {
+  async reportIssue(issueDetails: Omit<Issue, 'id' | 'reportedAt' | 'status'>, imageUri?: string, audioUri?: string): Promise<Issue> {
     const issues = await this.getIssues();
     const newIssue: Issue = {
       ...issueDetails,
       id: `iss_${Date.now()}`,
       reportedAt: new Date().toISOString(),
       status: 'pending',
-      imageUri
+      imageUri,
+      audioUri,
     };
 
     const updated = [newIssue, ...issues];
@@ -175,6 +226,76 @@ export const StorageService = {
     await this.logActivity(newIssue.reportedBy, `Reported issue: ${newIssue.description.substring(0, 30)}...`, newIssue.category);
 
     return newIssue;
+  },
+
+  // --- TASK PHOTO / PROOF ---
+  async getPhotos(category?: TaskCategory) {
+    const photosStr = await AsyncStorage.getItem(KEYS_EXT.TASK_PHOTOS);
+    let photos = [] as Array<{ id: string; taskId?: string; category?: TaskCategory; uri: string; reportedBy: string; timestamp: string; location?: { latitude: number; longitude: number } }>;
+    if (!photosStr) {
+      await AsyncStorage.setItem(KEYS_EXT.TASK_PHOTOS, JSON.stringify(photos));
+      return photos;
+    }
+    photos = JSON.parse(photosStr);
+    if (category) return photos.filter(p => p.category === category);
+    return photos;
+  },
+
+  async savePhotos(photos: Array<any>): Promise<void> {
+    await AsyncStorage.setItem(KEYS_EXT.TASK_PHOTOS, JSON.stringify(photos));
+  },
+
+  async addTaskPhoto(taskId: string | undefined, category: TaskCategory | undefined, uri: string, reportedBy: string, location?: { latitude: number; longitude: number }) {
+    const photos = await this.getPhotos();
+    const newPhoto = {
+      id: `photo_${Date.now()}`,
+      taskId,
+      category,
+      uri,
+      reportedBy,
+      timestamp: new Date().toISOString()
+      ,
+      location
+    };
+    const updated = [newPhoto, ...photos].slice(0, 500);
+    await this.savePhotos(updated);
+    return newPhoto;
+  },
+
+  async completeTaskWithPhoto(taskId: string, userName: string, details?: Record<string, any>, imageUri?: string, location?: { latitude: number; longitude: number }) {
+    const tasks = await this.getTasks();
+    const taskIndex = tasks.findIndex(t => t.id === taskId);
+    if (taskIndex > -1) {
+      const task = tasks[taskIndex];
+      // Update details
+      tasks[taskIndex].details = { ...tasks[taskIndex].details, ...details };
+      // attach photo URI to task (as proof)
+      if (imageUri) {
+        tasks[taskIndex].proof = tasks[taskIndex].proof ? [...(tasks[taskIndex].proof as string[]), imageUri] : [imageUri];
+      }
+      tasks[taskIndex].status = 'completed';
+      tasks[taskIndex].completedAt = new Date().toISOString();
+      tasks[taskIndex].completedBy = userName;
+
+      await this.saveTasks(tasks);
+
+      // register photo in gallery
+      if (imageUri) {
+        await this.addTaskPhoto(taskId, task.category, imageUri, userName, location);
+      }
+
+      // Log activity
+      await this.logActivity(userName, `Completed "${task.title}" with proof`, task.category);
+      // Create notification
+      await this.createNotification(
+        'Task Completed ✅',
+        `${userName} completed "${task.title}" (${task.category.replace('_', ' ')})`,
+        task.category,
+        'task_completed'
+      );
+    }
+
+    return this.getTasks();
   },
 
   async resolveIssue(issueId: string, resolutionNotes?: string): Promise<Issue[]> {

@@ -13,14 +13,15 @@ import { useTheme } from '../hooks/useTheme';
 import { StorageService } from '../services/storage';
 
 const loginSchema = z.object({
-  username: z.string().min(2, { message: 'Enter at least 2 characters' }),
+  identifier: z.string().min(2, { message: 'Enter your email or username' }),
+  password: z.string().min(4, { message: 'Enter your password' }),
 });
 type LoginFormValues = z.infer<typeof loginSchema>;
 
 // Demo accounts
 const DEMO_ACCOUNTS = [
-  { username: 'silas',  label: 'Silas',  role: 'Employee', icon: Leaf },
-  { username: 'marcus', label: 'Marcus', role: 'Manager',  icon: Wheat },
+  { identifier: 'silas',  label: 'Silas',  role: 'Employee', icon: Leaf, password: 'employee123' },
+  { identifier: 'marcus@farmflow.com', label: 'Marcus', role: 'Manager', icon: Wheat, password: 'manager123' },
 ];
 
 export default function LoginScreen() {
@@ -34,7 +35,7 @@ export default function LoginScreen() {
   const { control, handleSubmit, setValue, formState: { errors } } =
     useForm<LoginFormValues>({
       resolver: zodResolver(loginSchema),
-      defaultValues: { username: '' },
+      defaultValues: { identifier: '', password: '' },
     });
 
   // Entrance fade-in on mount
@@ -48,21 +49,23 @@ export default function LoginScreen() {
     setLoading(true);
     setAuthError(null);
     try {
-      const user = await StorageService.login(data.username);
+      const user = await StorageService.login(data.identifier, data.password);
       if (user) {
         router.replace('/(tabs)/dashboard');
       } else {
-        setAuthError('Username not found. Use one of the demo accounts below.');
+        setAuthError('Credentials not recognized. Use demo credentials or create an employee account.');
       }
-    } catch {
+    } catch (err) {
+      console.error(err);
       setAuthError('Something went wrong. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleQuickFill = (uname: string) => {
-    setValue('username', uname);
+  const handleQuickFill = (identifier: string, password: string) => {
+    setValue('identifier', identifier);
+    setValue('password', password);
     setAuthError(null);
   };
 
@@ -89,9 +92,9 @@ export default function LoginScreen() {
               </View>
             </View>
 
-            <Text style={s.brand}>Farm Work</Text>
-            <Text style={s.brandSub}>SCHEDULER</Text>
-            <Text style={s.tagline}>Daily operations, digitized.</Text>
+            <Text style={s.brand}>FarmFlow</Text>
+            <Text style={s.brandSub}>FARM MANAGEMENT</Text>
+            <Text style={s.tagline}>Modern animal farm operations for every field worker.</Text>
           </View>
 
           {/* ── Form Card ── */}
@@ -101,21 +104,21 @@ export default function LoginScreen() {
 
             <View style={{ padding: 28 }}>
               <Text style={s.cardTitle}>Sign In</Text>
-              <Text style={s.cardSubtitle}>Enter your farm username to continue</Text>
+              <Text style={s.cardSubtitle}>Use your farm email or username to access tasks and reports</Text>
 
               {/* ── Username Field ── */}
               <View style={{ marginTop: 20, marginBottom: 8 }}>
-                <Text style={s.fieldLabel}>FARM USERNAME</Text>
+                <Text style={s.fieldLabel}>EMAIL OR USERNAME</Text>
 
                 <Controller
                   control={control}
-                  name="username"
+                  name="identifier"
                   render={({ field: { onChange, onBlur, value } }) => (
                     <View
                       style={[
                         s.inputRow,
                         focused && { borderColor: colors.primary, borderWidth: 2 },
-                        errors.username && { borderColor: colors.dangerMid, borderWidth: 2 },
+                        errors.identifier && { borderColor: colors.dangerMid, borderWidth: 2 },
                       ]}
                     >
                       <TextInput
@@ -123,8 +126,50 @@ export default function LoginScreen() {
                         onChangeText={(t) => { onChange(t); setAuthError(null); }}
                         onBlur={() => { onBlur(); setFocused(false); }}
                         onFocus={() => setFocused(true)}
-                        placeholder="e.g. silas, marcus"
+                        placeholder="e.g. silas or marcus@farmflow.com"
                         placeholderTextColor={colors.textMuted}
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                        keyboardType="email-address"
+                        style={[s.input, { color: colors.text }]}
+                        returnKeyType="next"
+                        onSubmitEditing={() => { /* intentionally left blank */ }}
+                      />
+                    </View>
+                  )}
+                />
+
+                {errors.identifier && (
+                  <View style={s.errorRow}>
+                    <AlertCircle size={12} color={colors.dangerMid} />
+                    <Text style={[s.errorText, { color: colors.dangerMid }]}> {' '}{errors.identifier.message}</Text>
+                  </View>
+                )}
+              </View>
+
+              {/* ── Password Field ── */}
+              <View style={{ marginBottom: 8 }}>
+                <Text style={s.fieldLabel}>PASSWORD</Text>
+
+                <Controller
+                  control={control}
+                  name="password"
+                  render={({ field: { onChange, onBlur, value } }) => (
+                    <View
+                      style={[
+                        s.inputRow,
+                        focused && { borderColor: colors.primary, borderWidth: 2 },
+                        errors.password && { borderColor: colors.dangerMid, borderWidth: 2 },
+                      ]}
+                    >
+                      <TextInput
+                        value={value}
+                        onChangeText={(t) => { onChange(t); setAuthError(null); }}
+                        onBlur={() => { onBlur(); setFocused(false); }}
+                        onFocus={() => setFocused(true)}
+                        placeholder="Enter your password"
+                        placeholderTextColor={colors.textMuted}
+                        secureTextEntry
                         autoCapitalize="none"
                         autoCorrect={false}
                         style={[s.input, { color: colors.text }]}
@@ -135,12 +180,10 @@ export default function LoginScreen() {
                   )}
                 />
 
-                {errors.username && (
+                {errors.password && (
                   <View style={s.errorRow}>
                     <AlertCircle size={12} color={colors.dangerMid} />
-                    <Text style={[s.errorText, { color: colors.dangerMid }]}>
-                      {' '}{errors.username.message}
-                    </Text>
+                    <Text style={[s.errorText, { color: colors.dangerMid }]}> {' '}{errors.password.message}</Text>
                   </View>
                 )}
               </View>
@@ -190,8 +233,8 @@ export default function LoginScreen() {
                 const Icon = acc.icon;
                 return (
                   <Pressable
-                    key={acc.username}
-                    onPress={() => handleQuickFill(acc.username)}
+                    key={acc.identifier}
+                    onPress={() => handleQuickFill(acc.identifier, acc.password)}
                     style={({ pressed }) => [
                       s.demoBtn,
                       {
@@ -219,9 +262,7 @@ export default function LoginScreen() {
             </View>
           </View>
 
-          <Text style={[s.footer, { color: colors.textMuted }]}>
-            Farm Work Scheduler · v1.0.0
-          </Text>
+          <Text style={[s.footer, { color: colors.textMuted }]}>FarmFlow · v1.0.0</Text>
         </RNAnimated.View>
       </ScrollView>
     </KeyboardAvoidingView>

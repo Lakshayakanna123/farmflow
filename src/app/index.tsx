@@ -89,13 +89,13 @@ export default function SplashScreen() {
           style={{ color: colors.text }} 
           className="text-3xl font-extrabold tracking-tight mb-1"
         >
-          Farm Work
+          FarmFlow
         </Text>
         <Text 
           style={{ color: colors.primary }} 
           className="text-lg font-bold uppercase tracking-[0.25em] ml-1"
         >
-          Scheduler
+          Animal Farm Management
         </Text>
         
         <View className="flex-row items-center mt-12">
@@ -103,7 +103,7 @@ export default function SplashScreen() {
             style={{ color: colors.textSecondary }} 
             className="text-xs font-semibold tracking-wider uppercase opacity-60"
           >
-            Daily Operations Digitized
+            Operations, teams, and issues in harmony
           </Text>
         </View>
       </Animated.View>

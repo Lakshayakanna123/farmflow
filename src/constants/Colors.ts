@@ -1,5 +1,5 @@
 /**
- * COLOR PSYCHOLOGY — FARM WORK SCHEDULER
+ * COLOR PSYCHOLOGY — FARMFLOW
  *
  * 🟢 Forest Green   → Trust, nature, growth, "go" — primary actions & completed states
  * 🟡 Warm Gold      → Energy, optimism, warmth — progress highlights & accents

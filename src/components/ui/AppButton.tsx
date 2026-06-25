@@ -37,28 +37,28 @@ export const AppButton: React.FC<AppButtonProps> = ({
     switch (variant) {
       case 'secondary':
         return {
-          bg: 'bg-emerald-100 dark:bg-emerald-950',
-          text: 'text-emerald-800 dark:text-emerald-200 font-semibold',
-          border: 'border-0',
+          backgroundColor: colors.background,
+          borderColor: colors.primaryMid,
+          textColor: colors.text,
         };
       case 'outline':
         return {
-          bg: 'bg-transparent',
-          text: 'text-emerald-700 dark:text-emerald-300 font-semibold',
-          border: 'border border-emerald-600/30 dark:border-emerald-500/30',
+          backgroundColor: 'transparent',
+          borderColor: colors.primaryMid,
+          textColor: colors.primary,
         };
       case 'danger':
         return {
-          bg: 'bg-orange-700 dark:bg-orange-800',
-          text: 'text-white font-semibold',
-          border: 'border-0',
+          backgroundColor: colors.danger,
+          borderColor: colors.danger,
+          textColor: '#FFFFFF',
         };
       case 'primary':
       default:
         return {
-          bg: 'bg-emerald-700 dark:bg-emerald-600',
-          text: 'text-white font-semibold',
-          border: 'border-0',
+          backgroundColor: colors.primary,
+          borderColor: colors.primary,
+          textColor: '#FFFFFF',
         };
     }
   };
@@ -79,19 +79,18 @@ export const AppButton: React.FC<AppButtonProps> = ({
 
   return (
     <AnimatedPressable
-      style={animatedStyle}
+      style={[animatedStyle, { backgroundColor: styles.backgroundColor, borderColor: styles.borderColor, borderWidth: 1 }]}
       onPress={onPress}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       disabled={disabled || loading}
-      className={`h-14 rounded-2xl flex-row items-center justify-center px-6 ${styles.bg} ${styles.border} ${disabled ? 'opacity-50' : 'active:opacity-90'} ${className}`}
     >
       {loading ? (
-        <ActivityIndicator color={variant === 'outline' ? colors.primary : '#FFFFFF'} size="small" />
+        <ActivityIndicator color={styles.textColor} size="small" />
       ) : (
-        <View className="flex-row items-center justify-center space-x-2">
-          {icon && <View className="mr-2">{icon}</View>}
-          <Text className={`text-base text-center ${styles.text}`}>
+        <View style={{ height: 56, borderRadius: 22, paddingHorizontal: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', opacity: disabled ? 0.55 : 1 }}>
+          {icon && <View style={{ marginRight: 8 }}>{icon}</View>}
+          <Text style={{ color: styles.textColor, fontFamily: undefined, fontSize: 16, fontWeight: '700' }}>
             {label}
           </Text>
         </View>

@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TextInput, Pressable, Alert } from 'react-native';
+import { View, Text, ScrollView, TextInput, Pressable, Alert, Image, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Bird, ArrowLeft, Egg, Scale, Info, CheckCircle2, ChevronRight, AlertTriangle } from 'lucide-react-native';
+import { Bird, ArrowLeft, Egg, Scale, Info, CheckCircle2, ChevronRight, AlertTriangle, Camera, Trash2 } from 'lucide-react-native';
+import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
 import { useTheme } from '../../hooks/useTheme';
 import { StorageService } from '../../services/storage';
 import { Task, User } from '../../types';
@@ -180,10 +182,10 @@ export default function BirdsChecklistScreen() {
               <Egg size={20} color={colors.primary} />
             </View>
             <View>
-              <Text style={{ color: colors.textSecondary }} className="text-[10px] font-bold uppercase">
+              <Text style={{ color: colors.textSecondary, fontFamily: 'Inter_600SemiBold', fontSize: 10, textTransform: 'uppercase' }}>
                 Eggs Today
               </Text>
-              <Text style={{ color: colors.text }} className="text-lg font-black mt-0.5">
+              <Text style={{ color: colors.primary, fontFamily: 'Poppins_700Bold', fontSize: 18, marginTop: 4 }}>
                 {totalEggs} pcs
               </Text>
             </View>
@@ -194,10 +196,10 @@ export default function BirdsChecklistScreen() {
               <Scale size={20} color={colors.primary} />
             </View>
             <View>
-              <Text style={{ color: colors.textSecondary }} className="text-[10px] font-bold uppercase">
+              <Text style={{ color: colors.textSecondary, fontFamily: 'Inter_600SemiBold', fontSize: 10, textTransform: 'uppercase' }}>
                 Feed Logged
               </Text>
-              <Text style={{ color: colors.text }} className="text-lg font-black mt-0.5">
+              <Text style={{ color: colors.primary, fontFamily: 'Poppins_700Bold', fontSize: 18, marginTop: 4 }}>
                 {totalFeed} lbs
               </Text>
             </View>
@@ -205,7 +207,7 @@ export default function BirdsChecklistScreen() {
         </View>
 
         {/* Tasks List */}
-        <Text style={{ color: colors.text }} className="text-sm font-bold uppercase tracking-wider mb-3">
+        <Text style={{ color: colors.text, fontFamily: 'Poppins_700Bold', fontSize: 15, textTransform: 'uppercase', marginBottom: 12 }}>
           Daily Checklist Tasks
         </Text>
         <View>
@@ -239,7 +241,7 @@ export default function BirdsChecklistScreen() {
             className="py-3 rounded-xl flex-row items-center justify-center active:scale-95"
           >
             <AlertTriangle size={14} color={colors.danger} className="mr-1.5" />
-            <Text style={{ color: colors.danger }} className="text-xs font-bold">
+            <Text style={{ color: colors.danger, fontFamily: 'Inter_600SemiBold', fontSize: 12 }}>
               Report Issue for this Task
             </Text>
           </Pressable>
@@ -276,6 +278,8 @@ interface FormProps {
 // 1. FEED FORM
 const FeedForm: React.FC<FormProps> = ({ task, user, onComplete }) => {
   const { colors, isDark } = useTheme();
+  const [imageUri, setImageUri] = useState<string | null>(null);
+  const [imageLocation, setImageLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   
   const { control, handleSubmit, formState: { errors } } = useForm({
     resolver: zodResolver(schemas.birdsFeedSchema),
@@ -284,10 +288,11 @@ const FeedForm: React.FC<FormProps> = ({ task, user, onComplete }) => {
 
   const onSubmit = async (data: any) => {
     if (!user) return;
-    await StorageService.updateTaskDetails(task.id, { feedPounds: Number(data.feedPounds) });
-    if (task.status === 'pending') {
-      await StorageService.toggleTask(task.id, user.name);
+    if (!imageUri) {
+      Alert.alert('Photo Required', 'Please attach a photo proof before completing the task.');
+      return;
     }
+    await StorageService.completeTaskWithPhoto(task.id, user.name, { feedPounds: Number(data.feedPounds) }, imageUri, imageLocation || undefined);
     onComplete();
   };
 
@@ -322,7 +327,69 @@ const FeedForm: React.FC<FormProps> = ({ task, user, onComplete }) => {
           {errors.feedPounds.message as string}
         </Text>
       )}
-      <AppButton label="Save & Complete Task" onPress={handleSubmit(onSubmit)} className="mt-4" />
+      <View className="mt-4">
+        {imageUri ? (
+          <View className="relative w-full h-36 rounded-2xl overflow-hidden mb-3">
+            <Image source={{ uri: imageUri }} className="w-full h-full object-cover" />
+            <Pressable onPress={() => { setImageUri(null); setImageLocation(null); }} style={{ backgroundColor: colors.danger }} className="absolute top-3 right-3 w-8 h-8 rounded-full items-center justify-center">
+              <Trash2 size={16} color="#FFFFFF" />
+            </Pressable>
+          </View>
+        ) : (
+          <View className="flex-row space-x-3 mb-3">
+            <Pressable onPress={async () => {
+              if (Platform.OS !== 'web') {
+                const { status } = await ImagePicker.requestCameraPermissionsAsync();
+                if (status !== 'granted') { Alert.alert('Permission', 'Camera permission required'); return; }
+              }
+              const res = await ImagePicker.launchCameraAsync({ allowsEditing: true, aspect: [4,3], quality: 0.6 });
+              if (!res.canceled && res.assets && res.assets.length>0) {
+                const uri = res.assets[0].uri;
+                setImageUri(uri);
+                try {
+                  if (Platform.OS !== 'web') {
+                    const { status } = await Location.requestForegroundPermissionsAsync();
+                    if (status === 'granted') {
+                      const loc = await Location.getCurrentPositionAsync({});
+                      setImageLocation({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
+                    }
+                  }
+                } catch (e) {
+                  console.warn('Location capture failed', e);
+                }
+              }
+            }} style={{ backgroundColor: colors.background, borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(62,39,35,0.05)', borderWidth:1 }} className="flex-1 py-3 rounded-xl items-center justify-center">
+              <Camera size={16} color={colors.primary} className="mr-2" />
+              <Text style={{ color: colors.text }} className="text-xs font-bold">Take Photo</Text>
+            </Pressable>
+            <Pressable onPress={async () => {
+              if (Platform.OS !== 'web') {
+                const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+                if (status !== 'granted') { Alert.alert('Permission', 'Photo library permission required'); return; }
+              }
+              const res = await ImagePicker.launchImageLibraryAsync({ allowsEditing:true, aspect:[4,3], quality:0.6 });
+              if (!res.canceled && res.assets && res.assets.length>0) {
+                const uri = res.assets[0].uri;
+                setImageUri(uri);
+                try {
+                  if (Platform.OS !== 'web') {
+                    const { status } = await Location.requestForegroundPermissionsAsync();
+                    if (status === 'granted') {
+                      const loc = await Location.getCurrentPositionAsync({});
+                      setImageLocation({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
+                    }
+                  }
+                } catch (e) {
+                  console.warn('Location capture failed', e);
+                }
+              }
+            }} style={{ backgroundColor: colors.background, borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(62,39,35,0.05)', borderWidth:1 }} className="flex-1 py-3 rounded-xl items-center justify-center">
+              <Text style={{ color: colors.text }} className="text-xs font-bold">Upload Photo</Text>
+            </Pressable>
+          </View>
+        )}
+        <AppButton label="Save & Complete Task" onPress={handleSubmit(onSubmit)} className="w-full" />
+      </View>
     </View>
   );
 };
@@ -330,6 +397,8 @@ const FeedForm: React.FC<FormProps> = ({ task, user, onComplete }) => {
 // 2. MORTALITY FORM
 const MortalityForm: React.FC<FormProps> = ({ task, user, onComplete }) => {
   const { colors, isDark } = useTheme();
+  const [imageUri, setImageUri] = useState<string | null>(null);
+  const [imageLocation, setImageLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   
   const { control, handleSubmit, formState: { errors } } = useForm({
     resolver: zodResolver(schemas.birdsMortalitySchema),
@@ -338,10 +407,11 @@ const MortalityForm: React.FC<FormProps> = ({ task, user, onComplete }) => {
 
   const onSubmit = async (data: any) => {
     if (!user) return;
-    await StorageService.updateTaskDetails(task.id, { mortalityCount: Number(data.mortalityCount) });
-    if (task.status === 'pending') {
-      await StorageService.toggleTask(task.id, user.name);
+    if (!imageUri) {
+      Alert.alert('Photo Required', 'Please attach a photo proof before completing the task.');
+      return;
     }
+    await StorageService.completeTaskWithPhoto(task.id, user.name, { mortalityCount: Number(data.mortalityCount) }, imageUri, imageLocation || undefined);
     onComplete();
   };
 
@@ -382,7 +452,69 @@ const MortalityForm: React.FC<FormProps> = ({ task, user, onComplete }) => {
           {errors.mortalityCount.message as string}
         </Text>
       )}
-      <AppButton label="Save & Complete Task" onPress={handleSubmit(onSubmit)} className="mt-4" />
+      <View className="mt-4">
+        {imageUri ? (
+          <View className="relative w-full h-36 rounded-2xl overflow-hidden mb-3">
+            <Image source={{ uri: imageUri }} className="w-full h-full object-cover" />
+            <Pressable onPress={() => { setImageUri(null); setImageLocation(null); }} style={{ backgroundColor: colors.danger }} className="absolute top-3 right-3 w-8 h-8 rounded-full items-center justify-center">
+              <Trash2 size={16} color="#FFFFFF" />
+            </Pressable>
+          </View>
+        ) : (
+          <View className="flex-row space-x-3 mb-3">
+            <Pressable onPress={async () => {
+              if (Platform.OS !== 'web') {
+                const { status } = await ImagePicker.requestCameraPermissionsAsync();
+                if (status !== 'granted') { Alert.alert('Permission', 'Camera permission required'); return; }
+              }
+              const res = await ImagePicker.launchCameraAsync({ allowsEditing: true, aspect: [4,3], quality: 0.6 });
+              if (!res.canceled && res.assets && res.assets.length>0) {
+                const uri = res.assets[0].uri;
+                setImageUri(uri);
+                try {
+                  if (Platform.OS !== 'web') {
+                    const { status } = await Location.requestForegroundPermissionsAsync();
+                    if (status === 'granted') {
+                      const loc = await Location.getCurrentPositionAsync({});
+                      setImageLocation({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
+                    }
+                  }
+                } catch (e) {
+                  console.warn('Location capture failed', e);
+                }
+              }
+            }} style={{ backgroundColor: colors.background, borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(62,39,35,0.05)', borderWidth:1 }} className="flex-1 py-3 rounded-xl items-center justify-center">
+              <Camera size={16} color={colors.primary} className="mr-2" />
+              <Text style={{ color: colors.text }} className="text-xs font-bold">Take Photo</Text>
+            </Pressable>
+            <Pressable onPress={async () => {
+              if (Platform.OS !== 'web') {
+                const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+                if (status !== 'granted') { Alert.alert('Permission', 'Photo library permission required'); return; }
+              }
+              const res = await ImagePicker.launchImageLibraryAsync({ allowsEditing:true, aspect:[4,3], quality:0.6 });
+              if (!res.canceled && res.assets && res.assets.length>0) {
+                const uri = res.assets[0].uri;
+                setImageUri(uri);
+                try {
+                  if (Platform.OS !== 'web') {
+                    const { status } = await Location.requestForegroundPermissionsAsync();
+                    if (status === 'granted') {
+                      const loc = await Location.getCurrentPositionAsync({});
+                      setImageLocation({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
+                    }
+                  }
+                } catch (e) {
+                  console.warn('Location capture failed', e);
+                }
+              }
+            }} style={{ backgroundColor: colors.background, borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(62,39,35,0.05)', borderWidth:1 }} className="flex-1 py-3 rounded-xl items-center justify-center">
+              <Text style={{ color: colors.text }} className="text-xs font-bold">Upload Photo</Text>
+            </Pressable>
+          </View>
+        )}
+        <AppButton label="Save & Complete Task" onPress={handleSubmit(onSubmit)} className="w-full" />
+      </View>
     </View>
   );
 };
@@ -390,6 +522,8 @@ const MortalityForm: React.FC<FormProps> = ({ task, user, onComplete }) => {
 // 3. EGG COLLECTION FORM
 const EggForm: React.FC<FormProps> = ({ task, user, onComplete }) => {
   const { colors, isDark } = useTheme();
+  const [imageUri, setImageUri] = useState<string | null>(null);
+  const [imageLocation, setImageLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   
   const { control, handleSubmit, formState: { errors } } = useForm({
     resolver: zodResolver(schemas.birdsEggCollectionSchema),
@@ -401,13 +535,14 @@ const EggForm: React.FC<FormProps> = ({ task, user, onComplete }) => {
 
   const onSubmit = async (data: any) => {
     if (!user) return;
-    await StorageService.updateTaskDetails(task.id, { 
+    if (!imageUri) {
+      Alert.alert('Photo Required', 'Please attach a photo proof before completing the task.');
+      return;
+    }
+    await StorageService.completeTaskWithPhoto(task.id, user.name, { 
       eggsCount: Number(data.eggsCount),
       crackedCount: Number(data.crackedCount)
-    });
-    if (task.status === 'pending') {
-      await StorageService.toggleTask(task.id, user.name);
-    }
+    }, imageUri, imageLocation || undefined);
     onComplete();
   };
 
@@ -475,7 +610,69 @@ const EggForm: React.FC<FormProps> = ({ task, user, onComplete }) => {
         </Text>
       )}
 
-      <AppButton label="Save & Complete Task" onPress={handleSubmit(onSubmit)} className="mt-4" />
+      <View className="mt-4">
+        {imageUri ? (
+          <View className="relative w-full h-36 rounded-2xl overflow-hidden mb-3">
+            <Image source={{ uri: imageUri }} className="w-full h-full object-cover" />
+            <Pressable onPress={() => { setImageUri(null); setImageLocation(null); }} style={{ backgroundColor: colors.danger }} className="absolute top-3 right-3 w-8 h-8 rounded-full items-center justify-center">
+              <Trash2 size={16} color="#FFFFFF" />
+            </Pressable>
+          </View>
+        ) : (
+          <View className="flex-row space-x-3 mb-3">
+            <Pressable onPress={async () => {
+              if (Platform.OS !== 'web') {
+                const { status } = await ImagePicker.requestCameraPermissionsAsync();
+                if (status !== 'granted') { Alert.alert('Permission', 'Camera permission required'); return; }
+              }
+              const res = await ImagePicker.launchCameraAsync({ allowsEditing: true, aspect: [4,3], quality: 0.6 });
+              if (!res.canceled && res.assets && res.assets.length>0) {
+                const uri = res.assets[0].uri;
+                setImageUri(uri);
+                try {
+                  if (Platform.OS !== 'web') {
+                    const { status } = await Location.requestForegroundPermissionsAsync();
+                    if (status === 'granted') {
+                      const loc = await Location.getCurrentPositionAsync({});
+                      setImageLocation({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
+                    }
+                  }
+                } catch (e) {
+                  console.warn('Location capture failed', e);
+                }
+              }
+            }} style={{ backgroundColor: colors.background, borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(62,39,35,0.05)', borderWidth:1 }} className="flex-1 py-3 rounded-xl items-center justify-center">
+              <Camera size={16} color={colors.primary} className="mr-2" />
+              <Text style={{ color: colors.text }} className="text-xs font-bold">Take Photo</Text>
+            </Pressable>
+            <Pressable onPress={async () => {
+              if (Platform.OS !== 'web') {
+                const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+                if (status !== 'granted') { Alert.alert('Permission', 'Photo library permission required'); return; }
+              }
+              const res = await ImagePicker.launchImageLibraryAsync({ allowsEditing:true, aspect:[4,3], quality:0.6 });
+              if (!res.canceled && res.assets && res.assets.length>0) {
+                const uri = res.assets[0].uri;
+                setImageUri(uri);
+                try {
+                  if (Platform.OS !== 'web') {
+                    const { status } = await Location.requestForegroundPermissionsAsync();
+                    if (status === 'granted') {
+                      const loc = await Location.getCurrentPositionAsync({});
+                      setImageLocation({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
+                    }
+                  }
+                } catch (e) {
+                  console.warn('Location capture failed', e);
+                }
+              }
+            }} style={{ backgroundColor: colors.background, borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(62,39,35,0.05)', borderWidth:1 }} className="flex-1 py-3 rounded-xl items-center justify-center">
+              <Text style={{ color: colors.text }} className="text-xs font-bold">Upload Photo</Text>
+            </Pressable>
+          </View>
+        )}
+        <AppButton label="Save & Complete Task" onPress={handleSubmit(onSubmit)} className="w-full" />
+      </View>
     </View>
   );
 };
@@ -740,7 +937,7 @@ const GenericNotesForm: React.FC<FormProps> = ({ task, user, onComplete }) => {
 
   return (
     <View className="mt-2">
-      <Text style={{ color: colors.textSecondary }} className="text-xs font-semibold uppercase mb-2">
+      <Text style={{ color: colors.textSecondary, fontFamily: 'Poppins_600SemiBold', fontSize: 12, textTransform: 'uppercase', marginBottom: 8 }}>
         Checklist Notes
       </Text>
       <Controller
@@ -760,14 +957,19 @@ const GenericNotesForm: React.FC<FormProps> = ({ task, user, onComplete }) => {
               backgroundColor: colors.background,
               borderColor: errors.notes ? colors.danger : (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(62,39,35,0.08)'),
               borderWidth: 1,
-              textAlignVertical: 'top'
+              textAlignVertical: 'top',
+              fontFamily: 'Inter_400Regular',
+              fontSize: 14,
+              padding: 16,
+              borderRadius: 12,
+              height: 112,
+              marginBottom: 4
             }}
-            className="h-28 rounded-xl p-4 text-sm font-semibold mb-1"
           />
         )}
       />
       {errors.notes && (
-        <Text style={{ color: colors.danger }} className="text-xs font-semibold mb-4 ml-1">
+        <Text style={{ color: colors.danger, fontFamily: 'Inter_400Regular', fontSize: 12, marginBottom: 16, marginLeft: 4 }}>
           {errors.notes.message as string}
         </Text>
       )}

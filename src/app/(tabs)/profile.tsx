@@ -474,7 +474,7 @@ export default function ProfileScreen() {
         </Pressable>
 
         <Text style={{ color: colors.textMuted }} className="text-xs text-center mt-4">
-          Farm Work Scheduler · v1.0.0
+          FarmFlow · v1.0.0
         </Text>
 
       </ScrollView>

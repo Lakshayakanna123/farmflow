@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  View, Text, ScrollView, Pressable,
+  View, Text, ScrollView, Pressable, Alert,
   Animated as RNAnimated, StyleSheet, Modal,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -129,9 +129,25 @@ export default function DashboardScreen() {
     if (params.filterCategory) setSelectedCategory(params.filterCategory);
   }, [params.filterCategory]);
 
-  const handleToggleTask = async (taskId: string) => {
+  const handleToggleTask = async (taskInput: Task | string) => {
     if (!user) return;
-    const updatedTasks = await StorageService.toggleTask(taskId, user.name);
+    const task = typeof taskInput === 'string' ? tasks.find((item) => item.id === taskInput) : taskInput;
+    if (!task) return;
+
+    const requiresChecklist = task.status === 'pending' && ['birds', 'fish'].includes(task.category);
+    if (requiresChecklist) {
+      Alert.alert(
+        'Photo Proof Required',
+        'This task requires photo proof. Please complete it from the checklist screen.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Open Checklist', onPress: () => router.push(task.category === 'birds' ? '/checklist/birds' : '/checklist/fish') },
+        ]
+      );
+      return;
+    }
+
+    const updatedTasks = await StorageService.toggleTask(task.id, user.name);
     setTasks(updatedTasks);
     const recentActivities = await StorageService.getActivities();
     setActivities(recentActivities);
@@ -309,7 +325,7 @@ export default function DashboardScreen() {
               <TaskCard
                 key={item.id}
                 task={item}
-                onToggle={() => handleToggleTask(item.id)}
+                onToggle={() => handleToggleTask(item)}
                 onPress={() => handlePressTask(item)}
                 delay={idx * 40}
               />

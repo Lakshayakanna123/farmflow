@@ -1,18 +1,18 @@
 {
   "expo": {
-    "name": "farm-work-scheduler",
-    "slug": "farm-work-scheduler",
+    "name": "FarmFlow",
+    "slug": "farmflow",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "farmworkscheduler",
+    "scheme": "farmflow",
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/expo.icon"
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#F2E9D7",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
@@ -28,7 +28,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
+          "backgroundColor": "#EAF4E8",
           "android": {
             "image": "./assets/images/splash-icon.png",
             "imageWidth": 76

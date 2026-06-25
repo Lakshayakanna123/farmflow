@@ -2,12 +2,14 @@ export interface User {
   id: string;
   name: string;
   username: string;
+  email?: string;
+  password?: string;
   role: 'employee' | 'manager';
-  department?: 'birds' | 'fish' | 'calves' | 'cow_shed' | 'vehicles' | 'maintenance';
+  department?: 'birds' | 'fish' | 'calves' | 'cow_shed' | 'vehicles' | 'maintenance' | 'pond';
   avatar?: string;
 }
 
-export type TaskCategory = 'birds' | 'fish' | 'calves' | 'cow_shed' | 'vehicles' | 'maintenance';
+export type TaskCategory = 'birds' | 'fish' | 'calves' | 'cow_shed' | 'vehicles' | 'maintenance' | 'pond';
 
 export interface Task {
   id: string;
@@ -38,6 +40,7 @@ export interface Issue {
   type: 'equipment' | 'animal_health' | 'supply' | 'other';
   description: string;
   imageUri?: string;    // Base64 or local image URL
+  audioUri?: string;    // Local audio recording URI
   status: 'pending' | 'resolved';
   resolutionNotes?: string;
 }

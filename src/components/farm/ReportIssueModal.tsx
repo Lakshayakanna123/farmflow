@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, Pressable, Alert, Image, ScrollView, Platform } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { Audio } from 'expo-av';
 import { Camera, Image as ImageIcon, Trash2, AlertTriangle, ShieldAlert } from 'lucide-react-native';
 import { BottomSheet } from '../feedback/BottomSheet';
 import { AppButton } from '../ui/AppButton';
@@ -37,6 +38,9 @@ export const ReportIssueModal: React.FC<ReportIssueModalProps> = ({
   const [issueType, setIssueType] = useState<IssueType>('other');
   const [priority, setPriority] = useState<PriorityType>('medium');
   const [imageUri, setImageUri] = useState<string | null>(null);
+  const [audioUri, setAudioUri] = useState<string | null>(null);
+  const [recording, setRecording] = useState<Audio.Recording | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   // Determine actual category
@@ -104,9 +108,79 @@ export const ReportIssueModal: React.FC<ReportIssueModalProps> = ({
     }
   };
 
+  const requestAudioPermission = async () => {
+    if (Platform.OS === 'web') return true;
+    const { status } = await Audio.requestPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission Required', 'Microphone permission is required to record audio.');
+      return false;
+    }
+    return true;
+  };
+
+  const handleStartRecording = async () => {
+    const hasPermission = await requestAudioPermission();
+    if (!hasPermission) return;
+
+    try {
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+      });
+
+      const recording = new Audio.Recording();
+      await recording.prepareToRecordAsync(Audio.RECORDING_OPTIONS_PRESET_HIGH_QUALITY);
+      await recording.startAsync();
+      setRecording(recording);
+    } catch (error) {
+      console.error('Recording start failed', error);
+      Alert.alert('Error', 'Unable to start audio recording.');
+    }
+  };
+
+  const handleStopRecording = async () => {
+    if (!recording) return;
+
+    try {
+      await recording.stopAndUnloadAsync();
+      const uri = recording.getURI();
+      setAudioUri(uri);
+      setRecording(null);
+    } catch (error) {
+      console.error('Recording stop failed', error);
+      Alert.alert('Error', 'Unable to stop audio recording.');
+    }
+  };
+
+  const handlePlayAudio = async () => {
+    if (!audioUri) return;
+
+    try {
+      const { sound } = await Audio.Sound.createAsync({ uri: audioUri });
+      setIsPlaying(true);
+      await sound.playAsync();
+      sound.setOnPlaybackStatusUpdate((status) => {
+        if (status.isLoaded && status.didJustFinish) {
+          setIsPlaying(false);
+          sound.unloadAsync();
+        }
+      });
+    } catch (error) {
+      console.error('Audio playback failed', error);
+      Alert.alert('Error', 'Unable to play the recording.');
+      setIsPlaying(false);
+    }
+  };
+
   const handleSubmit = async () => {
     if (!description.trim()) {
       Alert.alert('Validation Error', 'Please describe the issue.');
+      return;
+    }
+
+    // If this report is linked to a task, require a photo proof
+    if (task && !imageUri) {
+      Alert.alert('Photo Required', 'Please attach a photo as proof when reporting from a checklist task.');
       return;
     }
 
@@ -120,7 +194,7 @@ export const ReportIssueModal: React.FC<ReportIssueModalProps> = ({
         priority,
         type: issueType,
         description: description.trim(),
-      }, imageUri || undefined);
+      }, imageUri || undefined, audioUri || undefined);
 
       Alert.alert('Issue Filed', 'The issue has been successfully reported to management.');
       
@@ -246,7 +320,7 @@ export const ReportIssueModal: React.FC<ReportIssueModalProps> = ({
         {/* Image Attachment Section */}
         <View className="mb-4">
           <Text style={{ color: colors.text }} className="text-xs font-bold uppercase tracking-wider mb-2">
-            Attach Photo (Optional)
+            Attach Photo {task ? '(Required for checklist proof)' : '(Optional)'}
           </Text>
 
           {imageUri ? (
@@ -296,12 +370,53 @@ export const ReportIssueModal: React.FC<ReportIssueModalProps> = ({
           )}
         </View>
 
+        {/* Audio Recording Section */}
+        <View className="mb-4">
+          <Text style={{ color: colors.text }} className="text-xs font-bold uppercase tracking-wider mb-2">
+            Record Audio (Optional)
+          </Text>
+          <View style={{ flexDirection: 'row', gap: 12 }}>
+            <Pressable
+              onPress={recording ? handleStopRecording : handleStartRecording}
+              style={{
+                backgroundColor: recording ? colors.danger : colors.background,
+                borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(62,39,35,0.05)',
+                borderWidth: 1,
+              }}
+              className="flex-1 py-4 rounded-xl items-center justify-center active:scale-95"
+            >
+              <Text style={{ color: recording ? '#FFFFFF' : colors.text }} className="text-xs font-bold">
+                {recording ? 'Stop Recording' : 'Start Recording'}
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={handlePlayAudio}
+              disabled={!audioUri || isPlaying}
+              style={{
+                backgroundColor: colors.background,
+                borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(62,39,35,0.05)',
+                borderWidth: 1,
+              }}
+              className="flex-1 py-4 rounded-xl items-center justify-center active:scale-95"
+            >
+              <Text style={{ color: !audioUri ? colors.textSecondary : colors.text }} className="text-xs font-bold">
+                {audioUri ? (isPlaying ? 'Playing...' : 'Play Recording') : 'No Recording'}
+              </Text>
+            </Pressable>
+          </View>
+          {audioUri ? (
+            <Text style={{ color: colors.textSecondary, marginTop: 10 }} className="text-xs">
+              Audio attached. You can play or re-record before submitting.
+            </Text>
+          ) : null}
+        </View>
+
         {/* Submit Button */}
         <AppButton
           label={submitting ? 'Submitting Report...' : 'File Issue Report'}
           variant="primary"
           onPress={handleSubmit}
-          disabled={submitting || !description.trim()}
+          disabled={submitting || !description.trim() || (task ? !imageUri : false)}
           icon={<ShieldAlert size={16} color="#FFFFFF" />}
           className="w-full mt-2"
         />

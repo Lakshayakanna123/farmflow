@@ -25,14 +25,14 @@ export const AppCard: React.FC<AppCardProps> = ({
   const cardStyle = [
     {
       backgroundColor: colors.card,
-      borderRadius: 24,
+      borderRadius: 18,
       borderWidth: 1,
-      borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(62, 39, 35, 0.05)',
+      borderColor: (colors as any).cardBorder || (isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(62, 39, 35, 0.05)'),
       shadowColor: colors.text,
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: isDark ? 0.2 : 0.03,
-      shadowRadius: 12,
-      elevation: 3,
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: isDark ? 0.28 : 0.04,
+      shadowRadius: 14,
+      elevation: 4,
     },
     style,
   ] as ViewStyle[];
